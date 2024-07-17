@@ -1,94 +1,159 @@
 import 'package:flutter/material.dart';
-import 'notification_service.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'reminder.dart';
 
 class ReminderHome extends StatefulWidget {
   const ReminderHome({Key? key}) : super(key: key);
 
   @override
-  // ignore: library_private_types_in_public_api
-  _ReminderHomeState createState() => _ReminderHomeState();
+  ReminderHomeState createState() => ReminderHomeState();
 }
 
-class _ReminderHomeState extends State<ReminderHome> {
-  String? selectedDay;
-  TimeOfDay? selectedTime;
-  String? selectedActivity;
-  final NotificationService notificationService = NotificationService();
+class ReminderHomeState extends State<ReminderHome> {
+  String? _selectedDay;
+  TimeOfDay? _selectedTime;
+  String? _selectedActivity;
 
-  final List<String> daysOfWeek = [
-    'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'
+  final List<String> _activities = [
+    'Wake up',
+    'Go to gym',
+    'Breakfast',
+    'Meetings',
+    'Lunch',
+    'Quick nap',
+    'Go to library',
+    'Dinner',
+    'Go to sleep',
   ];
 
-  final List<String> activities = [
-    'Wake up', 'Go to gym', 'Breakfast', 'Meetings', 'Lunch', 
-    'Quick nap', 'Go to library', 'Dinner', 'Go to sleep'
-  ];
+  final List<Reminder> _reminders = [];
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
     super.initState();
-    notificationService.initializeNotifications();
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+    flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  }
+
+  Future<void> _showNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+      'reminder_channel',
+      'Reminders',
+      channelDescription: 'Channel for reminder notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: 'item x',
+    );
+  }
+
+  void _scheduleReminder() {
+    if (_selectedDay != null && _selectedTime != null && _selectedActivity != null) {
+      final now = DateTime.now();
+      var reminderTime = DateTime(now.year, now.month, now.day, _selectedTime!.hour, _selectedTime!.minute);
+      if (reminderTime.isBefore(now)) {
+        reminderTime = reminderTime.add(const Duration(days: 1));
+      }
+
+      final delay = reminderTime.difference(now).inSeconds;
+      Future.delayed(Duration(seconds: delay), () {
+        _showNotification('Reminder', 'Time for $_selectedActivity');
+      });
+
+      setState(() {
+        _reminders.add(Reminder(day: _selectedDay!, time: _selectedTime!, activity: _selectedActivity!));
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Reminder set for $_selectedActivity at ${_selectedTime!.format(context)}')));
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Reminder App')),
+      appBar: AppBar(
+        title: const Text('Reminder App'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             DropdownButton<String>(
               hint: const Text('Select Day'),
-              value: selectedDay,
-              onChanged: (value) {
+              value: _selectedDay,
+              onChanged: (newValue) {
                 setState(() {
-                  selectedDay = value;
+                  _selectedDay = newValue;
                 });
               },
-              items: daysOfWeek.map((day) {
+              items: const [
+                'Monday', 'Tuesday', 'Wednesday',
+                'Thursday', 'Friday', 'Saturday', 'Sunday'
+              ].map((day) {
                 return DropdownMenuItem(
                   value: day,
                   child: Text(day),
                 );
               }).toList(),
             ),
+            const SizedBox(height: 16.0),
             ElevatedButton(
               onPressed: () async {
                 TimeOfDay? time = await showTimePicker(
                   context: context,
                   initialTime: TimeOfDay.now(),
                 );
-                setState(() {
-                  selectedTime = time;
-                });
+                if (time != null) {
+                  setState(() {
+                    _selectedTime = time;
+                  });
+                }
               },
-              child: const Text('Select Time'),
+              child: Text(_selectedTime == null ? 'Select Time' : _selectedTime!.format(context)),
             ),
+            const SizedBox(height: 16.0),
             DropdownButton<String>(
               hint: const Text('Select Activity'),
-              value: selectedActivity,
-              onChanged: (value) {
+              value: _selectedActivity,
+              onChanged: (newValue) {
                 setState(() {
-                  selectedActivity = value;
+                  _selectedActivity = newValue;
                 });
               },
-              items: activities.map((activity) {
+              items: _activities.map((activity) {
                 return DropdownMenuItem(
                   value: activity,
                   child: Text(activity),
                 );
               }).toList(),
             ),
+            const SizedBox(height: 16.0),
             ElevatedButton(
-              onPressed: () {
-                notificationService.scheduleNotification(
-                  selectedDay,
-                  selectedTime,
-                  selectedActivity,
-                );
-              },
+              onPressed: _scheduleReminder,
               child: const Text('Set Reminder'),
+            ),
+            const SizedBox(height: 16.0),
+            Expanded(
+              child: ListView.builder(
+                itemCount: _reminders.length,
+                itemBuilder: (context, index) {
+                  final reminder = _reminders[index];
+                  return ListTile(
+                    title: Text('${reminder.activity} on ${reminder.day} at ${reminder.time.format(context)}'),
+                  );
+                },
+              ),
             ),
           ],
         ),
