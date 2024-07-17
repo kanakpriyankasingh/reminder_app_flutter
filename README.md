@@ -25,7 +25,7 @@ A simple reminder application built with Flutter that allows users to set daily 
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/reminder_app.git
+git clone https://github.com/kanakpriyankasingh/reminder_app_flutter.git
 cd reminder_app
 Install Dependencies
 bash
@@ -57,9 +57,6 @@ The open-source community for various packages used in this project.
 csharp
 Copy code
 
-### Note
-
-Replace `https://github.com/yourusername/reminder_app.git` with your actual repository URL. Let me know if you need further assistance!
 
 
 
