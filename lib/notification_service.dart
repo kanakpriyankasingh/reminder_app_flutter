@@ -1,66 +1,47 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:flutter/material.dart';
-import 'package:timezone/timezone.dart' as tz;
-import 'package:timezone/data/latest.dart' as tz;
+import 'package:audioplayers/audioplayers.dart';
 
 class NotificationService {
   final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
+  final AudioPlayer _audioPlayer = AudioPlayer();
 
-  void initializeNotifications() {
+  NotificationService() {
     const AndroidInitializationSettings initializationSettingsAndroid =
-        AndroidInitializationSettings('app_icon');
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // ignore: prefer_const_declarations
-    final InitializationSettings initializationSettings = const InitializationSettings(
-      android: initializationSettingsAndroid,
-    );
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
 
     flutterLocalNotificationsPlugin.initialize(initializationSettings);
-    tz.initializeTimeZones();
   }
 
-  Future<void> scheduleNotification(
-      String? selectedDay, TimeOfDay? selectedTime, String? selectedActivity) async {
-    if (selectedDay != null && selectedTime != null && selectedActivity != null) {
-      final scheduledDate = tz.TZDateTime.now(tz.local).add(Duration(days: (getDayOffset(selectedDay))));
-
-      scheduledDate.add(Duration(
-        hours: selectedTime.hour,
-        minutes: selectedTime.minute,
-      ));
-
-      await flutterLocalNotificationsPlugin.zonedSchedule(
-        0,
-        'Reminder for $selectedActivity',
-        'It\'s time for $selectedActivity',
-        scheduledDate,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'your_channel_id',
-            'Your Channel Name',
-            channelDescription: 'Your Channel Description',
-            importance: Importance.max,
-            priority: Priority.high,
-            sound: RawResourceAndroidNotificationSound('notification_sound'), // Use your sound file
-          ),
-        ),
-        androidAllowWhileIdle: true,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-      );
-    }
+  Future<void> _playSound() async {
+    await _audioPlayer.play('https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3');
+    
   }
 
-  int getDayOffset(String selectedDay) {
-    final days = [
-      'Monday',
-      'Tuesday',
-      'Wednesday',
-      'Thursday',
-      'Friday',
-      'Saturday',
-      'Sunday'
-    ];
-    return days.indexOf(selectedDay) - DateTime.now().weekday + 1;
+  Future<void> showNotification(String title, String body) async {
+    await _playSound();
+
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'reminder_channel',
+      'Reminders',
+      channelDescription: 'Channel for reminder notifications',
+      importance: Importance.max,
+      priority: Priority.high,
+      ticker: 'ticker',
+    );
+
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: 'item x',
+    );
   }
 }
